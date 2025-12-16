@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { TreeMode } from '../types';
 
 interface UIOverlayProps {
@@ -6,11 +6,17 @@ interface UIOverlayProps {
   onToggle: () => void;
   onPhotosUpload: (photos: string[]) => void;
   hasPhotos: boolean;
+  uploadedPhotos: string[];
+  isSharedView: boolean;
 }
 
-export const UIOverlay: React.FC<UIOverlayProps> = ({ mode, onToggle, onPhotosUpload, hasPhotos }) => {
+export const UIOverlay: React.FC<UIOverlayProps> = ({ mode, onToggle, onPhotosUpload, hasPhotos, uploadedPhotos, isSharedView }) => {
   const isFormed = mode === TreeMode.FORMED;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareLink, setShareLink] = useState<string>('');
+  const [shareError, setShareError] = useState<string>('');
+  const [copied, setCopied] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -45,61 +51,203 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ mode, onToggle, onPhotosUp
     fileInputRef.current?.click();
   };
 
+  const handleShare = async () => {
+    if (!uploadedPhotos || uploadedPhotos.length === 0) {
+      setShareError('请先上传照片');
+      return;
+    }
+
+    setIsSharing(true);
+    setShareError('');
+    setShareLink('');
+
+    try {
+      // Try API first (works in vercel dev and production)
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          images: uploadedPhotos,
+        }),
+      });
+
+      // If API returns 404, use localStorage fallback
+      if (response.status === 404) {
+        const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1');
+        
+        if (isLocalDev) {
+          console.log('API not available, using localStorage fallback');
+          try {
+            const shareId = Math.random().toString(36).substring(2, 10);
+            const shareData = {
+              images: uploadedPhotos,
+              createdAt: Date.now(),
+            };
+            localStorage.setItem(`share_${shareId}`, JSON.stringify(shareData));
+            const shareLink = `${window.location.origin}/?share=${shareId}`;
+            setShareLink(shareLink);
+            return;
+          } catch (storageError: any) {
+            setShareError('图片数据太大，请减少照片数量或大小');
+            return;
+          }
+        } else {
+          throw new Error('API 未配置，请检查部署设置');
+        }
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '分享失败');
+      }
+
+      setShareLink(data.shareLink);
+    } catch (error: any) {
+      console.error('Share error:', error);
+      
+      // Fallback to localStorage for network errors
+      const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1');
+      
+      if (isLocalDev && (error.message?.includes('Failed to fetch') || error.name === 'TypeError')) {
+        try {
+          console.log('Network error, using localStorage fallback');
+          const shareId = Math.random().toString(36).substring(2, 10);
+          const shareData = {
+            images: uploadedPhotos,
+            createdAt: Date.now(),
+          };
+          localStorage.setItem(`share_${shareId}`, JSON.stringify(shareData));
+          const shareLink = `${window.location.origin}/?share=${shareId}`;
+          setShareLink(shareLink);
+          return;
+        } catch (storageError: any) {
+          setShareError('图片数据太大，请减少照片数量或大小');
+          return;
+        }
+      }
+      
+      setShareError(error.message || '分享失败，请重试');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!shareLink) return;
+
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Copy failed:', error);
+    }
+  };
+
+  const handleCreateMine = () => {
+    // 清除 URL 参数，刷新页面
+    window.location.href = window.location.origin;
+  };
+
   return (
-    <div className="absolute top-0 left-0 w-full h-full pointer-events-none flex flex-col justify-between p-8 z-10">
+    <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-10">
       
       {/* Header */}
-      <header className="flex flex-col items-center">
+      <header className="absolute top-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
         <h1 className="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-[#F5E6BF] to-[#D4AF37] font-serif drop-shadow-lg tracking-wider text-center">
           Merry Christmas
         </h1>
-        
-        {/* Upload Button - Only show when no photos uploaded */}
-        {!hasPhotos && (
-          <div className="mt-6 pointer-events-auto">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <button
-              onClick={handleUploadClick}
-              className="group px-8 py-3 border-2 border-[#D4AF37] bg-black/50 backdrop-blur-md overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_#D4AF37] hover:border-[#fff] hover:bg-[#D4AF37]/20"
-            >
-              <span className="relative z-10 font-serif text-lg md:text-xl text-[#D4AF37] tracking-[0.1em] group-hover:text-white transition-colors">
-                上传照片
-              </span>
-            </button>
-          </div>
-        )}
       </header>
 
-      {/* Control Panel */}
-      {/* <div className="flex flex-col items-center mb-8 pointer-events-auto">
-        <button
-          onClick={onToggle}
-          className={`
-            group relative px-12 py-4 border-2 border-[#D4AF37] 
-            bg-black/50 backdrop-blur-md overflow-hidden transition-all duration-500
-            hover:shadow-[0_0_30px_#D4AF37] hover:border-[#fff]
-          `}
-        >
-          <div className={`absolute inset-0 bg-[#D4AF37] transition-transform duration-500 ease-in-out origin-left ${isFormed ? 'scale-x-0' : 'scale-x-100'} opacity-10`}></div>
-          
-          <span className="relative z-10 font-serif text-xl md:text-2xl text-[#D4AF37] tracking-[0.2em] group-hover:text-white transition-colors">
-            {isFormed ? 'UNLEASH CHAOS' : 'RESTORE ORDER'}
-          </span>
-        </button>
+      {/* Right Bottom Action Area */}
+      <div className="absolute bottom-8 right-8 flex flex-col items-end gap-4 pointer-events-auto">
         
-        <p className="mt-4 text-[#F5E6BF] font-serif text-xs opacity-50 tracking-widest text-center max-w-md">
-          {isFormed 
-            ? "A magnificent assembly of the finest ornaments. Truly spectacular." 
-            : "Creative potential unleashed. Waiting to be made great again."}
-        </p>
-      </div> */}
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        {/* Shared View: Show "制作我的圣诞树" button */}
+        {isSharedView && (
+          <button
+            onClick={handleCreateMine}
+            className="group px-6 py-3 border-2 border-[#D4AF37] bg-black/70 backdrop-blur-md overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_#D4AF37] hover:border-[#fff] hover:bg-[#D4AF37]/20"
+          >
+            <span className="relative z-10 font-serif text-base md:text-lg text-[#D4AF37] tracking-[0.1em] group-hover:text-white transition-colors whitespace-nowrap">
+              制作我的圣诞树
+            </span>
+          </button>
+        )}
+
+        {/* Not Shared View: Show upload and share controls */}
+        {!isSharedView && (
+          <>
+            {/* Upload Button - Show when no photos */}
+            {!hasPhotos && (
+              <button
+                onClick={handleUploadClick}
+                className="group px-6 py-3 border-2 border-[#D4AF37] bg-black/70 backdrop-blur-md overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_#D4AF37] hover:border-[#fff] hover:bg-[#D4AF37]/20"
+              >
+                <span className="relative z-10 font-serif text-base md:text-lg text-[#D4AF37] tracking-[0.1em] group-hover:text-white transition-colors whitespace-nowrap">
+                  上传照片
+                </span>
+              </button>
+            )}
+
+            {/* Share Button - Show when photos are uploaded but link not generated */}
+            {hasPhotos && !shareLink && (
+              <div className="flex flex-col items-end gap-2">
+                <button
+                  onClick={handleShare}
+                  disabled={isSharing}
+                  className="group px-6 py-3 border-2 border-[#D4AF37] bg-black/70 backdrop-blur-md overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_#D4AF37] hover:border-[#fff] hover:bg-[#D4AF37]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="relative z-10 font-serif text-base md:text-lg text-[#D4AF37] tracking-[0.1em] group-hover:text-white transition-colors whitespace-nowrap">
+                    {isSharing ? '生成中...' : '生成分享链接'}
+                  </span>
+                </button>
+                {shareError && (
+                  <p className="text-red-400 text-xs font-serif text-right">{shareError}</p>
+                )}
+              </div>
+            )}
+
+            {/* Share Link Display - Show after link is generated */}
+            {shareLink && (
+              <div className="bg-black/80 backdrop-blur-md border-2 border-[#D4AF37] p-4 max-w-sm">
+                <p className="text-[#F5E6BF] font-serif text-sm mb-2">分享链接已生成</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={shareLink}
+                    readOnly
+                    className="flex-1 bg-black/50 text-[#D4AF37] px-3 py-2 text-xs border border-[#D4AF37]/30 font-mono"
+                  />
+                  <button
+                    onClick={handleCopyLink}
+                    className="px-3 py-2 border border-[#D4AF37] bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 transition-colors shrink-0"
+                  >
+                    <span className="text-[#D4AF37] text-xs font-serif whitespace-nowrap">
+                      {copied ? '✓ 已复制' : '复制'}
+                    </span>
+                  </button>
+                </div>
+                <p className="text-[#F5E6BF]/50 text-xs font-serif">
+                  30天后过期
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Decorative Corners */}
       <div className="absolute top-8 left-8 w-16 h-16 border-t-2 border-l-2 border-[#D4AF37] opacity-50"></div>
