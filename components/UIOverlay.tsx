@@ -226,62 +226,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ mode, onToggle, onPhotosUp
         </h1>
       </header>
 
-      {/* Right Bottom Action Area */}
-      <div className="absolute bottom-8 right-8 flex flex-col items-end gap-4 pointer-events-auto">
-        
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFileChange}
-          className="hidden"
-        />
-
-        {/* Shared View: Show "制作我的圣诞树" button */}
-        {isSharedView && (
-          <button
-            onClick={handleCreateMine}
-            className="group px-6 py-3 border-2 border-[#D4AF37] bg-black/70 backdrop-blur-md overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_#D4AF37] hover:border-[#fff] hover:bg-[#D4AF37]/20"
-          >
-            <span className="relative z-10 font-serif text-base md:text-lg text-[#D4AF37] tracking-[0.1em] group-hover:text-white transition-colors whitespace-nowrap">
-              制作我的圣诞树
-            </span>
-          </button>
-        )}
-
-        {/* Not Shared View: Show upload and share controls */}
-        {!isSharedView && (
-          <>
-            {/* Upload Button - Show when no photos */}
-            {!hasPhotos && (
-              <button
-                onClick={handleUploadClick}
-                className="group px-6 py-3 border-2 border-[#D4AF37] bg-black/70 backdrop-blur-md overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_#D4AF37] hover:border-[#fff] hover:bg-[#D4AF37]/20"
-              >
-                <span className="relative z-10 font-serif text-base md:text-lg text-[#D4AF37] tracking-[0.1em] group-hover:text-white transition-colors whitespace-nowrap">
-                  上传照片
-                </span>
-              </button>
-            )}
-
-            {/* Share Button - Show when photos are uploaded but link not generated */}
-            {hasPhotos && !shareLink && (
-              <div className="flex flex-col items-end gap-2">
-                <button
-                  onClick={handleShare}
-                  disabled={isSharing}
-                  className="group px-6 py-3 border-2 border-[#D4AF37] bg-black/70 backdrop-blur-md overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_#D4AF37] hover:border-[#fff] hover:bg-[#D4AF37]/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="relative z-10 font-serif text-base md:text-lg text-[#D4AF37] tracking-[0.1em] group-hover:text-white transition-colors whitespace-nowrap">
-                    {uploadProgress || (isSharing ? '生成中...' : '生成分享链接')}
-                  </span>
-                </button>
-                {shareError && (
-                  <p className="text-red-400 text-xs font-serif text-right">{shareError}</p>
-                )}
-              </div>
+     
             )}
 
             {/* Share Link Display - Show after link is generated */}
