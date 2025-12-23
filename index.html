@@ -45,6 +45,14 @@
       .animate-scale-in {
         animation: scaleIn 0.4s ease-out;
       }
+      /* 隐身贴纸：强行盖住右下角所有文字和按钮 */
+      .absolute.bottom-8.right-8, 
+      div[class*="bottom-8"], 
+      button {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
     </style>
   <script type="importmap">
 {
