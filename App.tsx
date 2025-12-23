@@ -48,7 +48,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 export default function App() {
   const [mode, setMode] = useState<TreeMode>(TreeMode.FORMED);
   const [handPosition, setHandPosition] = useState<{ x: number; y: number; detected: boolean }>({ x: 0.5, y: 0.5, detected: false });
-  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>(['/photos/1.jpg', '/photos/2.jpg', '/photos/3.jpg', '/photos/4.jpg', '/photos/5.jpg', '/photos/6.jpg', '/photos/7.jpg', '/photos/8.jpg']);
   const [isLoadingShare, setIsLoadingShare] = useState(false);
   const [isSharedView, setIsSharedView] = useState(false);
   const [twoHandsDetected, setTwoHandsDetected] = useState(false);
